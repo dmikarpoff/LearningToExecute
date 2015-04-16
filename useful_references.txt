@@ -1,1 +1,2 @@
-http://arxiv.org/pdf/1410.4615v3.pdf
+http://arxiv.org/pdf/1410.4615v3.pdf - Base article
+http://arxiv.org/pdf/1409.3215v3.pdf - Sequence to Sequence learning with NN by Sutskever
