@@ -1,0 +1,8 @@
+/CMakeFiles/
+*.txt~
+/CMakeCache.txt
+/Makefile
+*.cmake
+*.txt.user
+*.cbp
+/bin/
