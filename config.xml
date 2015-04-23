@@ -1,0 +1,8 @@
+<configurations>
+<configuration name="default">
+	<task val="train"/>
+	<rnn_size val="400"/>
+	<layers_amount val="2"/>
+	<init_val val="0.08"/>
+</configuration>
+</configurations>

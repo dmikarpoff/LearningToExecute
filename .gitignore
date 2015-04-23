@@ -6,3 +6,4 @@
 *.txt.user
 *.cbp
 /bin/
+*.xml~
