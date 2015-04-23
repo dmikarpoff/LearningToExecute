@@ -24,7 +24,13 @@ int main(int argc, char** argv) {
     }
     if (config.getRunType() == TRAINING) {
         std::cout << "Start training task" << std::endl;
-        NeuralNetwork nn(100, 100, 2.0);
+        std::cout << "Initializing network" << std::endl
+                  << "\tLayer's size = " << config.getRNNSize() << std::endl
+                  << "\tLayer's amount = " << config.getLayersAmount() << std::endl
+                  << "\tInit range = " << config.getInitRange() << std::endl;
+
+        NeuralNetwork nn(config.getRNNSize(), config.getLayersAmount(),
+                         config.getInitRange());
         std::cout << "End of training task" << std::endl;
     }
     return 0;
