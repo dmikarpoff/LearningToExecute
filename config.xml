@@ -4,5 +4,10 @@
 	<rnn_size val="400"/>
 	<layers_amount val="2"/>
 	<init_range val="0.08"/>
+	<strategy val="baseline"/>
+	<target_length val="8"/>
+	<target_nesting val="4"/>
+	<batch_size val="100"/>
+	<train_length val="10001"/>
 </configuration>
 </configurations>

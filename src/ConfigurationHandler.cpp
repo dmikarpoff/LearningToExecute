@@ -51,5 +51,43 @@ bool ConfigurationHandler::parseSingleNode(const pugi::xml_node &node) {
     if (init_range_attr.empty())
         return false;
     init_range_ = init_range_attr.as_double();
+    pugi::xml_node target_length = node.child("target_length");
+    if (target_length.empty())
+        return false;
+    pugi::xml_attribute target_length_attr = target_length.attribute("val");
+    if (target_length_attr.empty())
+        return false;
+    target_length_ = target_length_attr.as_uint();
+    pugi::xml_node target_nesting = node.child("target_nesting");
+    if (target_nesting.empty())
+        return false;
+    pugi::xml_attribute target_nesting_attr = target_nesting.attribute("val");
+    if (target_nesting_attr.empty())
+        return false;
+    target_nesting_ = target_nesting_attr.as_uint();
+    pugi::xml_node strategy = node.child("strategy");
+    if (strategy.empty())
+        return false;
+    pugi::xml_attribute strategy_attr = strategy.attribute("val");
+    if (strategy_attr.empty())
+        return false;
+    if (strcmp(strategy_attr.as_string(), "baseline") == 0)
+        strategy_ = BASELINE;
+    else
+        strategy_ = LST_SIZE;
+    pugi::xml_node batch_size = node.child("batch_size");
+    if (batch_size.empty())
+        return false;
+    pugi::xml_attribute batch_size_attr = batch_size.attribute("val");
+    if (batch_size_attr.empty())
+        return false;
+    batch_size_ = batch_size_attr.as_uint();
+    pugi::xml_node train_length = node.child("train_length");
+    if (train_length.empty())
+        return false;
+    pugi::xml_attribute train_length_attr = train_length.attribute("val");
+    if (train_length_attr.empty())
+        return false;
+    train_length_ = train_length_attr.as_uint();
     return true;
 }
