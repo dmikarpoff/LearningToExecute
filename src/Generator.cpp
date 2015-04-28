@@ -35,6 +35,7 @@ Generator::Generator(ILearningStrategy *strategy):
 }
 
 TrainSample Generator::generate() {
+    srand(time(NULL));
     while (!gstack_.empty())
         gstack_.pop();
     var_manager_.clear();

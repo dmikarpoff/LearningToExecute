@@ -20,6 +20,9 @@ class Generator {
  public:
     Generator(ILearningStrategy* strategy);
     TrainSample generate();
+    size_t getDictionarySize() {
+        return dict_.size();
+    }
 
  private:
     ILearningStrategy* strategy_;
