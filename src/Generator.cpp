@@ -5,37 +5,22 @@
 #include <cstdlib>
 #include <sstream>
 
+#include "../include/SymbolManager.h"
+
 Generator::Generator(ILearningStrategy *strategy):
         strategy_(strategy) {
+    long int seed = rand();
+    srand(time(&seed));
     random_op.push_back(&Generator::pair_opr);
     random_op.push_back(&Generator::smallmul_opr);
     random_op.push_back(&Generator::equality_opr);
     random_op.push_back(&Generator::vars_opr);
     random_op.push_back(&Generator::small_loop_opr);
     random_op.push_back(&Generator::ifstat_opr);
-    int last_idx = 1;
-    for (char c = '0'; c <= '9'; ++c, ++last_idx)
-        dict_[c] = last_idx;
-    for (char c = 'a'; c <= 'z'; ++c, ++last_idx)
-        dict_[c] = last_idx;
-    dict_[' '] = last_idx++;
-    dict_['#'] = last_idx++;
-    dict_['@'] = last_idx++;
-    dict_['.'] = last_idx++;
-    dict_[':'] = last_idx++;
-    dict_['+'] = last_idx++;
-    dict_['-'] = last_idx++;
-    dict_['*'] = last_idx++;
-    dict_['('] = last_idx++;
-    dict_[')'] = last_idx++;
-    dict_['<'] = last_idx++;
-    dict_['>'] = last_idx++;
-    dict_['='] = last_idx++;
-    dict_[0] = 0;
 }
 
 TrainSample Generator::generate() {
-    srand(time(NULL));
+    SymbolManager* symb_man = SymbolManager::getInstance();
     while (!gstack_.empty())
         gstack_.pop();
     var_manager_.clear();
@@ -58,10 +43,10 @@ TrainSample Generator::generate() {
     input += "print(" + output.expr + ")@";
     for (size_t i = 0; i < input.size(); ++i) {
         res.output.push_back(0);
-        res.input.push_back(dict_.at((unsigned char)input[i]));
+        res.input.push_back(symb_man->getIndexOfSymbol(input[i]));
     }
     for (size_t i = 0; i < target.size(); ++i) {
-        res.output.push_back(dict_.at((unsigned char)target[i]));
+        res.output.push_back(symb_man->getIndexOfSymbol(target[i]));
         res.input.push_back(0);
     }
     res.source_code = input + target;

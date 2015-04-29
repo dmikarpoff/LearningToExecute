@@ -29,13 +29,15 @@ set(src			src/main.cpp
                         src/ConfigurationHandler.cpp
                         src/Network.cpp
                         src/Generator.cpp
-                        src/VariableManager.cpp)
+                        src/VariableManager.cpp
+                        src/SymbolManager.cpp)
 set(headers             include/ConfigurationHandler.h
                         include/Network.h
                         include/Generator.h
                         include/ILearningStrategy.h
                         include/BaselineStrategy.h
-                        include/VariableManager.h)
+                        include/VariableManager.h
+                        include/SymbolManager.h)
 
 add_executable(bin/learn_to_exec 	${src}
                                         ${headers})

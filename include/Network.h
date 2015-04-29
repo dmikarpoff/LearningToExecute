@@ -20,12 +20,17 @@ class NeuralNetwork {
                                         cv::Mat* W_decoder_grad,
                                         cv::Mat* b_encoder_grad,
                                         cv::Mat* b_decoder_grad);
-
+    double estimateProbabilityOfOutput(const cv::Mat &x, const cv::Mat &y,
+                                       const cv::Mat& W_enc, const cv::Mat& W_dec,
+                                       const cv::Mat& b_enc, const cv::Mat& b_dec,
+                                       const cv::Mat& itoh, const cv::Mat& htoo);
  private:
+    static double sigmoid(double x);
+    static void vectorToDistribution(cv::Mat& x);
+    static const double DX;
+
     size_t rnn_size_;
     size_t layers_amount_;
-    std::vector<cv::Mat> encoder_layers_;
-    std::vector<cv::Mat> decoder_layers_;
     ILearningStrategy* strategy_;
     cv::Mat W_encoder, W_decoder, b_encoder, b_decoder;
     cv::Mat i2h;

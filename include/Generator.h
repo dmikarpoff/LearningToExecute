@@ -20,15 +20,10 @@ class Generator {
  public:
     Generator(ILearningStrategy* strategy);
     TrainSample generate();
-    size_t getDictionarySize() {
-        return dict_.size();
-    }
-
  private:
     ILearningStrategy* strategy_;
     std::stack<std::pair<std::string, long long> > gstack_;
     VariableManager var_manager_;
-    std::map<char, int> dict_;
 
     struct OperationOutput {
         std::vector<std::string> code;
