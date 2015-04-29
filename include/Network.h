@@ -24,6 +24,7 @@ class NeuralNetwork {
                                        const cv::Mat& W_enc, const cv::Mat& W_dec,
                                        const cv::Mat& b_enc, const cv::Mat& b_dec,
                                        const cv::Mat& itoh, const cv::Mat& htoo);
+    double estimateDatasetProbability(const cv::Mat& x, const cv::Mat& y);
  private:
     static double sigmoid(double x);
     static void vectorToDistribution(cv::Mat& x);

@@ -11,9 +11,8 @@ NeuralNetwork::NeuralNetwork(const size_t &rnn_size,
                              const double& init_val):
         rnn_size_(rnn_size), layers_amount_(layers_amount) {
     SymbolManager* symb_manager = SymbolManager::getInstance();
-    Generator gen(strategy_);
     i2h = cv::Mat(symb_manager->getDictionarySize(), rnn_size, CV_64F);
-    h2o = cv::Mat(rnn_size, symb_manager->getDictionarySize(), CV_64F);
+    h2o = cv::Mat(12, rnn_size, CV_64F);
     cv::RNG rng;
     for (int i = 0; i < i2h.rows; ++i)
         for (int j = 0; j < i2h.cols; ++j)
@@ -80,11 +79,79 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
             }
         }
         std::cout << "Generation done." << std::endl << std::endl;
+        size_t ticks = 0;
         std::cout << "Maximizing aposteriori probability..." << std::endl;
+        double learning_rate = 1.0;
+        double prev_val = 0.0;
+        for (int i = 0; i < x.cols; ++i) {
+            cv::Mat temp_x(x.rows, 1, CV_64F);
+            x.col(i).copyTo(temp_x);
+            cv::Mat temp_y(y.rows, 1, CV_64F);
+            y.col(i).copyTo(temp_y);
+            prev_val += estimateDatasetProbability(temp_x, temp_y);
+        }
+        std::cout << "Objective value = " << prev_val << std::endl;
+        long int srand_param = rand();
+        srand(time(&srand_param));
+        while (learning_rate > 0.001) {
+            if (ticks > 20) {
+                std::cout << "Decreasing learning rate" << std::endl;
+                learning_rate *= 0.8;
+            }
+            int cur_batch = rand() % batch_size;
+            cv::Mat temp_x(x.rows, 1, CV_64F);
+            x.col(cur_batch).copyTo(temp_x);
+            cv::Mat temp_y(y.rows, 1, CV_64F);
+            y.col(cur_batch).copyTo(temp_y);
+            cv::Mat i2h_grad(i2h.rows, i2h.cols, CV_64F);
+            cv::Mat h2o_grad(h2o.rows, h2o.cols, CV_64F);
+            cv::Mat W_encoder_grad(W_encoder.rows, W_encoder.cols, CV_64F);
+            cv::Mat W_decoder_grad(W_decoder.rows, W_decoder.cols, CV_64F);
+            cv::Mat b_encoder_grad(b_encoder.rows, b_encoder.cols, CV_64F);
+            cv::Mat b_decoder_grad(b_decoder.rows, b_decoder.cols, CV_64F);
+            estimateGradientLogProbability(temp_x, temp_y, &i2h_grad, &h2o_grad,
+                                           &W_encoder_grad, &W_decoder_grad,
+                                           &b_encoder_grad, &b_decoder_grad);
+            cv::Mat upd_i2h = i2h - learning_rate * i2h_grad;
+            cv::Mat upd_h2o = h2o - learning_rate * h2o_grad;
+            cv::Mat upd_W_encoder = W_encoder - learning_rate * W_encoder_grad;
+            cv::Mat upd_W_decoder = W_decoder - learning_rate * W_decoder_grad;
+            cv::Mat upd_b_encoder = b_encoder - learning_rate * b_encoder_grad;
+            cv::Mat upd_b_decoder = b_decoder - learning_rate * b_decoder_grad;
+            cv::swap(upd_i2h, i2h);
+            cv::swap(upd_h2o, h2o);
+            cv::swap(upd_W_encoder, W_encoder);
+            cv::swap(upd_W_decoder, W_decoder);
+            cv::swap(upd_b_encoder, b_encoder);
+            cv::swap(upd_b_decoder, b_decoder);
+            double upd_val = 0.0;
+            for (int i = 0; i < x.cols; ++i) {
+                cv::Mat temp_x(x.rows, 1, CV_64F);
+                x.col(i).copyTo(temp_x);
+                cv::Mat temp_y(y.rows, 1, CV_64F);
+                y.col(i).copyTo(temp_y);
+                upd_val += estimateDatasetProbability(temp_x, temp_y);
+            }
+            if (upd_val < prev_val) {
+                prev_val = upd_val;
+                ticks = 0;
+                std::cout << "Minimal objective val updated = " << upd_val << std::endl;
+            } else {
+                ++ticks;
+                cv::swap(upd_i2h, i2h);
+                cv::swap(upd_h2o, h2o);
+                cv::swap(upd_W_encoder, W_encoder);
+                cv::swap(upd_W_decoder, W_decoder);
+                cv::swap(upd_b_encoder, b_encoder);
+                cv::swap(upd_b_decoder, b_decoder);
+            }
+        }
         std::cout << "Aposteriori probablity maximized." << std::endl;
     } while (strategy_->makeHarder());
     std::cout << "...End of training process" << std::endl;
 }
+
+
 
 void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
                             const cv::Mat &y, cv::Mat *i2h_grad,
@@ -338,6 +405,41 @@ double NeuralNetwork::estimateProbabilityOfOutput(const cv::Mat &x, const cv::Ma
                                             y.at<double>(i, 0)), 0);
         res -= log(prob);
     }
+    return res;
+}
+
+double NeuralNetwork::estimateDatasetProbability(const cv::Mat &x, const cv::Mat &y) {
+    std::vector<cv::Mat> inputs, outputs;
+    {
+        int i = 0, j = 0;
+        while (true) {
+            if (i >= x.rows)
+                break;
+            if (std::abs(x.at<double>(i, 0)) < 1E-6) {
+                ++i;
+                continue;
+            }
+            j = i;
+            while (x.at<double>(j, 0) > 1E-6)
+                ++j;
+            cv::Mat input = cv::Mat::zeros(j - i, 1, CV_64F);
+            for (int h = i; h < j; ++h)
+                input.at<double>(h - i, 0) = x.at<double>(h, 0);
+            inputs.push_back(input);
+            int y_pos = j;
+            while (j < y.rows && y.at<double>(j, 0) > 1E-6)
+                ++j;
+            cv::Mat output = cv::Mat::zeros(j - y_pos, 1, CV_64F);
+            for (int h = y_pos; h < j; ++h)
+                output.at<double>(h - y_pos, 0) = y.at<double>(h, 0);
+            outputs.push_back(output);
+            i = j;
+        }
+    }
+    double res = 0.0;
+    for (size_t i = 0; i < inputs.size(); ++i)
+        res += estimateProbabilityOfOutput(inputs[i], outputs[i], W_encoder, W_decoder,
+                                           b_encoder, b_decoder, i2h, h2o);
     return res;
 }
 

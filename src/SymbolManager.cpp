@@ -32,4 +32,5 @@ SymbolManager::SymbolManager() {
     for (char c= '0'; c <= '9'; ++c, ++last_idx)
         out_map_[dict_[c]] = c - '0';
     out_map_[dict_['.']] = 10;
+    out_map_[dict_['-']] = 11;
 }
