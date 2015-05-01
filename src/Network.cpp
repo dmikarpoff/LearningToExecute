@@ -1,3 +1,5 @@
+#include <omp.h>
+
 #include <iostream>
 
 #include "../include/Generator.h"
@@ -137,6 +139,7 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
                 ticks = 0;
                 std::cout << "Minimal objective val updated = " << upd_val << std::endl;
             } else {
+                std::cout << "No progress" << std::endl;
                 ++ticks;
                 cv::swap(upd_i2h, i2h);
                 cv::swap(upd_h2o, h2o);
@@ -185,7 +188,9 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             i = j;
         }
     }
+#pragma omp parallel for
     for (int i = 0; i < i2h.rows; ++i) {
+        #pragma omp parallel for
         for (int j = 0; j < i2h.cols; ++j) {
             cv::Mat i2h_left = i2h.clone();
             cv::Mat i2h_right = i2h.clone();
@@ -206,7 +211,9 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             i2h_grad->at<double>(i, j) = (left_prob - right_prob) / (2.0 * DX);
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < h2o.rows; ++i) {
+        #pragma omp parallel for
         for (int j = 0; j < h2o.cols; ++j) {
             cv::Mat h2o_left = h2o.clone();
             cv::Mat h2o_right = h2o.clone();
@@ -227,7 +234,9 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             h2o_grad->at<double>(i, j) = (left_prob - right_prob) / (2.0 * DX);
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < W_encoder.rows; ++i) {
+        #pragma omp parallel for
         for (int j = 0; j < W_encoder.cols; ++j) {
             cv::Mat W_enc_left = W_encoder.clone();
             cv::Mat W_enc_right = W_encoder.clone();
@@ -248,7 +257,9 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             W_encoder_grad->at<double>(i, j) = (left_prob - right_prob) / (2.0 * DX);
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < W_decoder.rows; ++i) {
+        #pragma omp parallel for
         for (int j = 0; j < W_decoder.cols; ++j) {
             cv::Mat W_dec_left = W_decoder.clone();
             cv::Mat W_dec_right = W_decoder.clone();
@@ -269,7 +280,9 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             W_decoder_grad->at<double>(i, j) = (left_prob - right_prob) / (2.0 * DX);
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < b_encoder.rows; ++i) {
+        #pragma omp parallel for
         for (int j = 0; j < b_encoder.cols; ++j) {
             cv::Mat b_enc_left = b_encoder.clone();
             cv::Mat b_enc_right = b_encoder.clone();
@@ -290,7 +303,9 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             b_encoder_grad->at<double>(i, j) = (left_prob - right_prob) / (2.0 * DX);
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < b_decoder.rows; ++i) {
+        #pragma omp parallel for
         for (int j = 0; j < b_decoder.cols; ++j) {
             cv::Mat b_dec_left = b_decoder.clone();
             cv::Mat b_dec_right = b_decoder.clone();
