@@ -14,17 +14,19 @@ class NeuralNetwork {
         strategy_ = strategy;
     }
     void train(const size_t& batch_size, const size_t& train_length);
-    void estimateGradientLogProbability(const cv::Mat &x, const cv::Mat &y,
+    void estimateGradientLikelihood(const std::vector<cv::Mat> &x,
+                                        const std::vector<cv::Mat> &y,
                                         cv::Mat* i2h_grad, cv::Mat* h2o_grad,
                                         cv::Mat* W_encoder_grad,
                                         cv::Mat* W_decoder_grad,
                                         cv::Mat* b_encoder_grad,
                                         cv::Mat* b_decoder_grad);
-    double estimateProbabilityOfOutput(const cv::Mat &x, const cv::Mat &y,
+    double estimateLikelihood(const cv::Mat &x, const cv::Mat &y,
                                        const cv::Mat& W_enc, const cv::Mat& W_dec,
                                        const cv::Mat& b_enc, const cv::Mat& b_dec,
                                        const cv::Mat& itoh, const cv::Mat& htoo);
-    double estimateDatasetProbability(const cv::Mat& x, const cv::Mat& y);
+    double estimateDatasetLikelihood(const std::vector<cv::Mat>& x,
+                                      const std::vector<cv::Mat>& y);
  private:
     static double sigmoid(double x);
     static void vectorToDistribution(cv::Mat& x);

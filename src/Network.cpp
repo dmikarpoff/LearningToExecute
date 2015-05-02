@@ -47,23 +47,28 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
         Generator generator(strategy_);
         size_t idx = 0;
         size_t batch_idx = 0;
-        cv::Mat x = cv::Mat::ones(train_length, batch_size, CV_64F);
-        cv::Mat y = cv::Mat::zeros(train_length, batch_size, CV_64F);
+        std::vector<std::vector<cv::Mat> > x(batch_size);
+        std::vector<std::vector<cv::Mat> > y(batch_size);
         size_t i = 0;
         std::cout << "Generating new input data" << std::endl;
         while (true) {
             TrainSample sample = generator.generate();
-            if (idx + sample.input.size() >= train_length) {
+            if (idx + sample.input.size() + sample.output.size() >=
+                                                        train_length) {
                 idx = 0;
                 batch_idx++;
                 if (batch_idx >= batch_size)
                     break;
             }
-            for (size_t j = 0; j < sample.input.size(); ++j, ++idx) {
-                if (j < sample.input.size())
-                    x.at<double>(idx, batch_idx) = sample.input[j];
-                if (j < sample.output.size())
-                    y.at<double>(idx, batch_idx) = sample.output[j];
+            x[batch_idx].push_back(cv::Mat(sample.input.size() +
+                                           sample.output.size(), 1, CV_64F));
+            y[batch_idx].push_back(cv::Mat(sample.output.size(), 1, CV_64F));
+            for (size_t j = 0; j < sample.input.size(); ++j, ++idx)
+                x[batch_idx].back().at<double>(j, 0) = sample.input[j];
+            for (size_t j = 0; j < sample.output.size(); ++j, ++idx) {
+                y[batch_idx].back().at<double>(j, 0) = sample.output[j];
+                x[batch_idx].back().at<double>(j + sample.input.size(), 0) =
+                        sample.output.size();
             }
             if (i <= 2) {
                 std::cout << "\tInput:\n\t\t";
@@ -87,13 +92,8 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
         double prev_val = 0.0;
         omp_set_num_threads(12);
 #pragma omp parallel for reduction(+: prev_val)
-        for (int i = 0; i < x.cols; ++i) {
-            cv::Mat temp_x(x.rows, 1, CV_64F);
-            x.col(i).copyTo(temp_x);
-            cv::Mat temp_y(y.rows, 1, CV_64F);
-            y.col(i).copyTo(temp_y);
-            prev_val += estimateDatasetProbability(temp_x, temp_y);
-        }
+        for (int i = 0; i < x.size(); ++i)
+            prev_val += estimateDatasetLikelihood(x[i], y[i]);
         std::cout << "Objective value = " << prev_val << std::endl;
         long int srand_param = rand();
         srand(time(&srand_param));
@@ -103,17 +103,15 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
                 learning_rate *= 0.8;
             }
             int cur_batch = rand() % batch_size;
-            cv::Mat temp_x(x.rows, 1, CV_64F);
-            x.col(cur_batch).copyTo(temp_x);
-            cv::Mat temp_y(y.rows, 1, CV_64F);
-            y.col(cur_batch).copyTo(temp_y);
+            const std::vector<cv::Mat>& temp_x = x[cur_batch];
+            const std::vector<cv::Mat>& temp_y = y[cur_batch];
             cv::Mat i2h_grad(i2h.rows, i2h.cols, CV_64F);
             cv::Mat h2o_grad(h2o.rows, h2o.cols, CV_64F);
             cv::Mat W_encoder_grad(W_encoder.rows, W_encoder.cols, CV_64F);
             cv::Mat W_decoder_grad(W_decoder.rows, W_decoder.cols, CV_64F);
             cv::Mat b_encoder_grad(b_encoder.rows, b_encoder.cols, CV_64F);
             cv::Mat b_decoder_grad(b_decoder.rows, b_decoder.cols, CV_64F);
-            estimateGradientLogProbability(temp_x, temp_y, &i2h_grad, &h2o_grad,
+            estimateGradientLikelihood(temp_x, temp_y, &i2h_grad, &h2o_grad,
                                            &W_encoder_grad, &W_decoder_grad,
                                            &b_encoder_grad, &b_decoder_grad);
             cv::Mat upd_i2h = i2h - learning_rate * i2h_grad;
@@ -130,13 +128,8 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
             cv::swap(upd_b_decoder, b_decoder);
             double upd_val = 0.0;
             #pragma omp parallel for reduction(+: upd_val)
-            for (int i = 0; i < x.cols; ++i) {
-                cv::Mat temp_x(x.rows, 1, CV_64F);
-                x.col(i).copyTo(temp_x);
-                cv::Mat temp_y(y.rows, 1, CV_64F);
-                y.col(i).copyTo(temp_y);
-                upd_val += estimateDatasetProbability(temp_x, temp_y);
-            }
+            for (int i = 0; i < x.size(); ++i)
+                upd_val += estimateDatasetLikelihood(x[i], y[i]);
             if (upd_val < prev_val) {
                 prev_val = upd_val;
                 ticks = 0;
@@ -159,39 +152,11 @@ void NeuralNetwork::train(const size_t &batch_size, const size_t &train_length) 
 
 
 
-void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
-                            const cv::Mat &y, cv::Mat *i2h_grad,
-                            cv::Mat *h2o_grad, cv::Mat *W_encoder_grad,
-                            cv::Mat *W_decoder_grad, cv::Mat *b_encoder_grad,
-                            cv::Mat *b_decoder_grad) {
-    omp_set_num_threads(12);
-    std::vector<cv::Mat> inputs, outputs;
-    {
-        int i = 0, j = 0;
-        while (true) {
-            if (i >= x.rows)
-                break;
-            if (std::abs(x.at<double>(i, 0)) < 1E-6) {
-                ++i;
-                continue;
-            }
-            j = i;
-            while (x.at<double>(j, 0) > 1E-6)
-                ++j;
-            cv::Mat input = cv::Mat::zeros(j - i, 1, CV_64F);
-            for (int h = i; h < j; ++h)
-                input.at<double>(h - i, 0) = x.at<double>(h, 0);
-            inputs.push_back(input);
-            int y_pos = j;
-            while (j < y.rows && y.at<double>(j, 0) > 1E-6)
-                ++j;
-            cv::Mat output = cv::Mat::zeros(j - y_pos, 1, CV_64F);
-            for (int h = y_pos; h < j; ++h)
-                output.at<double>(h - y_pos, 0) = y.at<double>(h, 0);
-            outputs.push_back(output);
-            i = j;
-        }
-    }
+void NeuralNetwork::estimateGradientLikelihood(const std::vector<cv::Mat> &x,
+                            const std::vector<cv::Mat> &y,
+                            cv::Mat *i2h_grad, cv::Mat *h2o_grad,
+                            cv::Mat *W_encoder_grad, cv::Mat *W_decoder_grad,
+                            cv::Mat *b_encoder_grad, cv::Mat *b_decoder_grad) {
 #pragma omp parallel for
     for (int i = 0; i < i2h.rows; ++i) {
         for (int j = 0; j < i2h.cols; ++j) {
@@ -201,13 +166,13 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             i2h_right.at<double>(i, j) -= DX;
             double left_prob = 0.0;
             double right_prob = 0.0;
-            for (int h = 0; h < inputs.size(); ++h) {
-                left_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                left_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_encoder, b_decoder,
                                     i2h_left, h2o);
             }
-            for (int h = 0; h < inputs.size(); ++h) {
-                right_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                right_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_encoder, b_decoder,
                                     i2h_right, h2o);
             }
@@ -223,13 +188,13 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             h2o_right.at<double>(i, j) -= DX;
             double left_prob = 0.0;
             double right_prob = 0.0;
-            for (int h = 0; h < inputs.size(); ++h) {
-                left_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                left_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_encoder, b_decoder,
                                     i2h, h2o_left);
             }
-            for (int h = 0; h < inputs.size(); ++h) {
-                right_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                right_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_encoder, b_decoder,
                                     i2h, h2o_right);
             }
@@ -245,13 +210,13 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             W_enc_right.at<double>(i, j) -= DX;
             double left_prob = 0.0;
             double right_prob = 0.0;
-            for (int h = 0; h < inputs.size(); ++h) {
-                left_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                left_prob += estimateLikelihood(x[h], y[h],
                                     W_enc_left, W_decoder, b_encoder, b_decoder,
                                     i2h, h2o);
             }
-            for (int h = 0; h < inputs.size(); ++h) {
-                right_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                right_prob += estimateLikelihood(x[h], y[h],
                                     W_enc_right, W_decoder, b_encoder, b_decoder,
                                     i2h, h2o);
             }
@@ -267,13 +232,13 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             W_dec_right.at<double>(i, j) -= DX;
             double left_prob = 0.0;
             double right_prob = 0.0;
-            for (int h = 0; h < inputs.size(); ++h) {
-                left_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                left_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_dec_left, b_encoder, b_decoder,
                                     i2h, h2o);
             }
-            for (int h = 0; h < inputs.size(); ++h) {
-                right_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                right_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_dec_right, b_encoder, b_decoder,
                                     i2h, h2o);
             }
@@ -289,13 +254,13 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             b_enc_right.at<double>(i, j) -= DX;
             double left_prob = 0.0;
             double right_prob = 0.0;
-            for (int h = 0; h < inputs.size(); ++h) {
-                left_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                left_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_enc_left, b_decoder,
                                     i2h, h2o);
             }
-            for (int h = 0; h < inputs.size(); ++h) {
-                right_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                right_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_enc_right, b_decoder,
                                     i2h, h2o);
             }
@@ -311,13 +276,13 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
             b_dec_right.at<double>(i, j) -= DX;
             double left_prob = 0.0;
             double right_prob = 0.0;
-            for (int h = 0; h < inputs.size(); ++h) {
-                left_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                left_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_encoder, b_dec_left,
                                     i2h, h2o);
             }
-            for (int h = 0; h < inputs.size(); ++h) {
-                right_prob += estimateProbabilityOfOutput(inputs[h], outputs[h],
+            for (int h = 0; h < x.size(); ++h) {
+                right_prob += estimateLikelihood(x[h], y[h],
                                     W_encoder, W_decoder, b_encoder, b_dec_right,
                                     i2h, h2o);
             }
@@ -326,7 +291,7 @@ void NeuralNetwork::estimateGradientLogProbability(const cv::Mat &x,
     }
 }
 
-double NeuralNetwork::estimateProbabilityOfOutput(const cv::Mat &x, const cv::Mat &y,
+double NeuralNetwork::estimateLikelihood(const cv::Mat &x, const cv::Mat &y,
                                                    const cv::Mat &W_enc, const cv::Mat &W_dec,
                                                    const cv::Mat &b_enc, const cv::Mat &b_dec,
                                                    const cv::Mat &itoh, const cv::Mat &htoo) {
@@ -421,37 +386,10 @@ double NeuralNetwork::estimateProbabilityOfOutput(const cv::Mat &x, const cv::Ma
     return res;
 }
 
-double NeuralNetwork::estimateDatasetProbability(const cv::Mat &x, const cv::Mat &y) {
-    std::vector<cv::Mat> inputs, outputs;
-    {
-        int i = 0, j = 0;
-        while (true) {
-            if (i >= x.rows)
-                break;
-            if (std::abs(x.at<double>(i, 0)) < 1E-6) {
-                ++i;
-                continue;
-            }
-            j = i;
-            while (x.at<double>(j, 0) > 1E-6)
-                ++j;
-            cv::Mat input = cv::Mat::zeros(j - i, 1, CV_64F);
-            for (int h = i; h < j; ++h)
-                input.at<double>(h - i, 0) = x.at<double>(h, 0);
-            inputs.push_back(input);
-            int y_pos = j;
-            while (j < y.rows && y.at<double>(j, 0) > 1E-6)
-                ++j;
-            cv::Mat output = cv::Mat::zeros(j - y_pos, 1, CV_64F);
-            for (int h = y_pos; h < j; ++h)
-                output.at<double>(h - y_pos, 0) = y.at<double>(h, 0);
-            outputs.push_back(output);
-            i = j;
-        }
-    }
+double NeuralNetwork::estimateDatasetLikelihood(const std::vector<cv::Mat> &x, const std::vector<cv::Mat> &y) {
     double res = 0.0;
-    for (size_t i = 0; i < inputs.size(); ++i)
-        res += estimateProbabilityOfOutput(inputs[i], outputs[i], W_encoder, W_decoder,
+    for (size_t i = 0; i < x.size(); ++i)
+        res += estimateLikelihood(x[i], y[i], W_encoder, W_decoder,
                                            b_encoder, b_decoder, i2h, h2o);
     return res;
 }
