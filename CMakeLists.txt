@@ -6,6 +6,8 @@ set(CMAKE_BUILD_TYPE Debug)
 
 add_definitions(-std=c++11)
 
+file(MAKE_DIRECTORY bin)
+
 find_path (PUGIXML_INCLUDE_DIR
            NAMES pugixml.hpp
            PATHS ${PUGIXML_HOME}/include)

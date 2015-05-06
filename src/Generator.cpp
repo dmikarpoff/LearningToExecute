@@ -41,13 +41,11 @@ TrainSample Generator::generate() {
     for (size_t i = 0; i < output.code.size(); ++i)
         input += output.code[i] + '#';
     input += "print(" + output.expr + ")@";
-    for (size_t i = 0; i < input.size(); ++i) {
-        res.output.push_back(0);
+    for (size_t i = 0; i < input.size(); ++i)
         res.input.push_back(symb_man->getIndexOfSymbol(input[i]));
-    }
     for (size_t i = 0; i < target.size(); ++i) {
         res.output.push_back(symb_man->getIndexOfSymbol(target[i]));
-        res.input.push_back(0);
+        res.input.push_back(symb_man->getIndexOfSymbol(target[i]));
     }
     res.source_code = input + target;
     return res;
