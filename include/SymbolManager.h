@@ -15,6 +15,9 @@ class SymbolManager {
     int getIndexOfOutput(size_t c) {
         return out_map_.at(c);
     }
+    size_t getOutDictSize() const {
+        return out_map_.size();
+    }
 
  private:
     SymbolManager();

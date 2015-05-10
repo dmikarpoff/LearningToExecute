@@ -27,6 +27,7 @@ SymbolManager::SymbolManager() {
     dict_['<'] = last_idx++;
     dict_['>'] = last_idx++;
     dict_['='] = last_idx++;
+    dict_['@'] = last_idx++;
     dict_[0] = 0;
     last_idx = 0;
     for (char c= '0'; c <= '9'; ++c, ++last_idx)
