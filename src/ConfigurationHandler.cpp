@@ -89,5 +89,12 @@ bool ConfigurationHandler::parseSingleNode(const pugi::xml_node &node) {
     if (train_length_attr.empty())
         return false;
     train_length_ = train_length_attr.as_uint();
+    pugi::xml_node valid_length = node.child("valid_length");
+    if (valid_length.empty())
+        return false;
+    pugi::xml_attribute valid_length_attr = valid_length.attribute("val");
+    if (valid_length_attr.empty())
+        return false;
+    valid_length_ = valid_length_attr.as_uint();
     return true;
 }

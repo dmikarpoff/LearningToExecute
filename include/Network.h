@@ -21,21 +21,17 @@ class NeuralNetwork {
     void setStrategy(ILearningStrategy* strategy) {
         strategy_ = strategy;
     }
-    void train(const size_t& batch_size, const size_t& train_length);
-//    void estimateGradientLikelihood(const std::vector<cv::Mat> &x,
-//                                        const std::vector<cv::Mat> &y,
-//                                        cv::Mat* i2h_grad, cv::Mat* h2o_grad,
-//                                        cv::Mat* W_encoder_grad,
-//                                        cv::Mat* W_decoder_grad,
-//                                        cv::Mat* b_encoder_grad,
-//                                        cv::Mat* b_decoder_grad);
+    void train(const size_t& batch_size, const size_t& train_length,
+               const size_t &valid_size);
     double estimateLikelihood(const cv::Mat &x, const cv::Mat &y,
                               const cv::Mat& W, cv::Mat& b,
                               const cv::Mat& input_gate1,
                               const cv::Mat& input_gate2,
-                              const cv::Mat& h2o);
+                              const cv::Mat& h2o,
+                              BackwardPropogationModule* bpm = NULL);
     double estimateDatasetLikelihood(const std::vector<cv::Mat>& x,
-                                      const std::vector<cv::Mat>& y);
+                                     const std::vector<cv::Mat>& y,
+                                     BackwardPropogationModule* bpm = NULL);
  private:
     static double sigmoid(double x);
     static void vectorToDistribution(cv::Mat& x);

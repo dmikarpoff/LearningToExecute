@@ -48,7 +48,8 @@ int main(int argc, char** argv) {
             return 0;
         }
         nn.setStrategy(lstrategy);
-        nn.train(config.getBatchSize(), config.getTrainLength());
+        nn.train(config.getBatchSize(), config.getTrainLength(),
+                 config.getValidationLength());
         std::cout << "End of training task" << std::endl;
     }
     return 0;

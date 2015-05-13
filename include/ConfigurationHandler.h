@@ -42,6 +42,9 @@ class ConfigurationHandler {
     size_t getTrainLength() const {
         return train_length_;
     }
+    size_t getValidationLength() const {
+        return valid_length_;
+    }
 
  private:
     bool parseSingleNode(const pugi::xml_node& node);
@@ -53,6 +56,7 @@ class ConfigurationHandler {
     size_t target_nesting_;
     size_t batch_size_;
     size_t train_length_;
+    size_t valid_length_;
     double init_range_;
     LearningStrategyType strategy_;
 };

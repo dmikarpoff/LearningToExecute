@@ -9,5 +9,6 @@
 	<target_nesting val="4"/>
 	<batch_size val="100"/>
 	<train_length val="10001"/>
+	<valid_length val="10001"/>
 </configuration>
 </configurations>
